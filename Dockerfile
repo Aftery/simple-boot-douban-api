@@ -1,5 +1,5 @@
 # Start with base image
-FROM openjdk:8-jdk-alpine
+FROM amazoncorretto:8-alpine
 
 # Add Maintainer Info
 LABEL maintainer="fugary"
