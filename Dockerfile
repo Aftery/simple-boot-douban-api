@@ -1,39 +1,30 @@
 # ==============================================================================
 # 阶段 1: 编译打包 (Build Stage)
-# 使用包含 Maven 3.9 + Java 8 的轻量级 Alpine 镜像
+# 使用 Java 17 + Maven (Debian 底层)，网络协议栈与证书完整，可精准解析 2.7.13 parent
 # ==============================================================================
-FROM maven:3.9.6-eclipse-temurin-8-alpine AS builder
+FROM maven:3.8.8-eclipse-temurin-17 AS builder
 
-# 设置容器内的工作目录
 WORKDIR /build
 
-# 1. 先单独复制 pom.xml（利用 Docker 缓存机制，若依赖未变则跳过下载）
+# 1. 复制 pom.xml 与源码
 COPY pom.xml .
-
-# 2. 复制源码目录
 COPY src ./src
 
-
-# 将原来的: RUN mvn clean package -DskipTests
-# 改为增加 -U (强制更新依赖) 和 --fail-never 或补充参数：
+# 2. 执行构建 (-U 强制刷新 parent，-e 打印异常，跳过测试)
 RUN mvn clean package -DskipTests -U -e
+
 # ==============================================================================
 # 阶段 2: 运行环境 (Run Stage)
-# 只保留运行所需的 JRE 8，极大缩小最终镜像体积（仅 100MB+）
+# 使用轻量级 JRE 8 运行产物，完美匹配你的 <java.version>8</java.version>
 # ==============================================================================
 FROM eclipse-temurin:8-jre-alpine
 
-# 设置运行时工作目录
 WORKDIR /app
 
-# 从第一阶段 (builder) 的构建产物中，把 target/ 下的 jar 包复制出来并重命名为 app.jar
-# 使用 *.jar 通配符，彻底避免因版本号不匹配导致的 "file not found" 报错
+# 从打包阶段复制 jar 包
 COPY --from=builder /build/target/*.jar app.jar
 
-# 声明容器暴露的端口（Spring Boot 默认端口）
-EXPOSE 8085
+EXPOSE 8080
 
-# 启动命令：
-# -Xms256m -Xmx384m: 限制堆内存，避免超过 Render 免费版的 512MB 限制
-# -Djava.security.egd=file:/dev/./urandom: 加快 Linux 环境下 Tomcat 启动速度
+# 限制堆内存防止 Render 免费版 512MB OOM 强杀
 ENTRYPOINT ["java", "-Xms256m", "-Xmx384m", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
