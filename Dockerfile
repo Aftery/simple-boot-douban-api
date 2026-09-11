@@ -13,9 +13,10 @@ COPY pom.xml .
 # 2. 复制源码目录
 COPY src ./src
 
-# 3. 执行打包，跳过单元测试，生成 jar 包到 /build/target 目录下
-RUN mvn clean package -DskipTests
 
+# 将原来的: RUN mvn clean package -DskipTests
+# 改为增加 -U (强制更新依赖) 和 --fail-never 或补充参数：
+RUN mvn clean package -DskipTests -U -e
 # ==============================================================================
 # 阶段 2: 运行环境 (Run Stage)
 # 只保留运行所需的 JRE 8，极大缩小最终镜像体积（仅 100MB+）
